@@ -1,5 +1,5 @@
 variable "project_name" {
-  default = "algo-vpn"
+  default = "cowrie"
 }
 
 variable "tenancy_ocid" {}
@@ -25,7 +25,10 @@ variable "instance_shape" {
 
 variable "image_ocid" {
   # canonical ubuntu 20.04 minimal ashburn
-  default = "ocid1.image.oc1.iad.aaaaaaaawwax2iqkcrg65cxr3w656erbgsb2v7pcjbsm45aocl5qic24h2va"
+  # default = "ocid1.image.oc1.iad.aaaaaaaawwax2iqkcrg65cxr3w656erbgsb2v7pcjbsm45aocl5qic24h2va"
+
+  # centos 8 ashburn
+  default = "ocid1.image.oc1.iad.aaaaaaaagubx53kzend5acdvvayliuna2fs623ytlwalehfte7z2zdq7f6ya"
 }
 
 # same cidr used for the vcn and subnet
@@ -37,7 +40,7 @@ terraform {
   required_providers {
     oci = {
       source = "hashicorp/oci"
-      version = "4.13.0"
+      version = "4.59.0"
     }
   }
 }
@@ -67,32 +70,32 @@ data "oci_identity_regions" "home_region" {
   }
 }
 
-resource "oci_core_vcn" "algo" {
+resource "oci_core_vcn" "cowrie" {
   cidr_block     = var.vcn_subnet_cidr
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
-  dns_label      = "algovpn"
+  dns_label      = "cowrie"
 }
 
-resource "oci_core_internet_gateway" "algo" {
+resource "oci_core_internet_gateway" "cowrie" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
-  vcn_id = oci_core_vcn.algo.id
+  vcn_id = oci_core_vcn.cowrie.id
 }
 
-resource "oci_core_route_table" "algo" {
+resource "oci_core_route_table" "cowrie" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
 
   route_rules {
     destination       = "0.0.0.0/0"
-    network_entity_id = oci_core_internet_gateway.algo.id
+    network_entity_id = oci_core_internet_gateway.cowrie.id
   }
 
-  vcn_id = oci_core_vcn.algo.id
+  vcn_id = oci_core_vcn.cowrie.id
 }
 
-resource "oci_core_security_list" "algo" {
+resource "oci_core_security_list" "cowrie" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
 
@@ -101,41 +104,52 @@ resource "oci_core_security_list" "algo" {
     destination = "0.0.0.0/0"
   }
 
-  # https://github.com/trailofbits/algo/blob/master/docs/firewalls.md
+  # https://github.com/trailofbits/cowrie/blob/master/docs/firewalls.md
   ingress_security_rules {
-    # allow udp
-    protocol = 17
+    # Options are supported only for ICMP ("1"), TCP ("6"), UDP ("17"), and ICMPv6 ("58").
+    protocol = 6
     source   = "0.0.0.0/0"
 
-    udp_options {
-      min = 51820
-      max = 51820
+    tcp_options {
+      max = 22
+      min = 22
     }
   }
 
-  vcn_id = oci_core_vcn.algo.id
+  # ingress_security_rules {
+  #   # Options are supported only for ICMP ("1"), TCP ("6"), UDP ("17"), and ICMPv6 ("58").
+  #   protocol = 6
+  #   source   = "0.0.0.0/0"
+  #
+  #   tcp_options {
+  #     max = 2222
+  #     min = 2222
+  #   }
+  # }
+
+  vcn_id = oci_core_vcn.cowrie.id
 }
 
-resource "oci_core_subnet" "algo" {
+resource "oci_core_subnet" "cowrie" {
   cidr_block                 = var.vcn_subnet_cidr
   compartment_id             = var.tenancy_ocid
   display_name               = var.project_name
-  dns_label                  = "algosub"
+  dns_label                  = "cowriesub"
   prohibit_public_ip_on_vnic = false
-  route_table_id             = oci_core_route_table.algo.id
-  security_list_ids          = [oci_core_security_list.algo.id]
-  vcn_id                     = oci_core_vcn.algo.id
+  route_table_id             = oci_core_route_table.cowrie.id
+  security_list_ids          = [oci_core_security_list.cowrie.id]
+  vcn_id                     = oci_core_vcn.cowrie.id
 }
 
-resource "oci_core_instance" "algo" {
+resource "oci_core_instance" "cowrie" {
   availability_domain = var.availability_domain
   compartment_id      = var.tenancy_ocid
 
   create_vnic_details {
     assign_public_ip = true
     display_name     = var.project_name
-    hostname_label   = "algo"
-    subnet_id        = oci_core_subnet.algo.id
+    hostname_label   = "cowrie"
+    subnet_id        = oci_core_subnet.cowrie.id
   }
 
   display_name = var.project_name

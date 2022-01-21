@@ -1,30 +1,78 @@
-# OCI + Algo VPN
+# OCI + Cowrie
 
-Deploy [Algo VPN](https://github.com/trailofbits/algo) on [OCI](https://www.oracle.com/cloud/)
+Deploy [Cowrie](https://github.com/cowrie/cowrie) on [OCI](https://www.oracle.com/cloud/)
 
 ## Setup
 
-```
-cp example.tfvars terraform.tfvars
-
-# fill in the variables in terraform.tfvars
-
-terraform init
-
-terraform plan -out plan
+```bash
+tpop
+...
+Plan: 6 to add, 0 to change, 0 to destroy.
 
 terraform apply plan
+...
+Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+```
 
-# note the public ip address of the created compute instance
+not going to worry about locking myself out of ssh. i can reboot and it will wipe out the firewall settings. or use it as a chance to try oci compute run command
 
-ssh ubuntu@<ip address>
+updated security group rules to allow tcp port 2222 in addition to 22
 
-ubuntu@algo:~$ export METHOD=local
-ubuntu@algo:~$ export ONDEMAND_CELLULAR=true
-ubuntu@algo:~$ export USERS=user1,user2,user3,user4,user5,user6,user7,user8,user9
-ubuntu@algo:~$ export ENDPOINT=<ip address>
-ubuntu@algo:~$ curl -s https://raw.githubusercontent.com/trailofbits/algo/master/install.sh | sudo -E bash -x
+```bash
+ssh opc@150.136.53.13
+sudo -s
+dnf update -y
+
+dnf remove -y python3
+dnf module enable -y python39
+dnf install -y python39 git firewalld
+
+systemctl enable --now firewalld.service
+firewall-cmd --add-port 2222/tcp
+
+useradd cowrie
+su - cowrie
+git clone https://github.com/cowrie/cowrie.git
+cd cowrie
+
+pip3 install -r requirements.txt
+
+cp etc/cowrie.cfg.dist etc/cowrie.cfg
+sed -i "s/svr04/securebastion104/g" etc/cowrie.cfg
+
+bin/cowrie start
+ss -lntp
+
+exit
+
+# as root again
+sudo iptables -t nat -A PREROUTING -p tcp --dport 22 -j REDIRECT --to-port 2222
+```
+
+test from second terminal
+
+```bash
+ssh -p 2222 root@150.136.53.13
+whoami
+ls -l
+ls -l /
+```
+
+verification from first terminal
+
+```bash
+tail -f /home/cowrie/cowrie/var/log/cowrie/cowrie.json
+tail -f /home/cowrie/cowrie/var/log/cowrie/cowrie.log
+```
+
+verify port 22
+
+```bash
+
+ssh root@150.136.53.13
 
 ```
 
-then remove ssh access from the security list rule. re-plan, re-apply.
+all good.
+
+remove port 2222 security list. commented 2222 sg ingress. tpop. terraform apply plan. done

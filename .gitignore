@@ -2,3 +2,4 @@
 plan
 *.tfstate*
 terraform.tfvars
+.vagrant
