@@ -4,6 +4,8 @@ variable "project_name" {
 
 variable "tenancy_ocid" {}
 
+variable "object_storage_namespace" {}
+
 variable "user_ocid" {}
 
 variable "fingerprint" {}
@@ -179,4 +181,36 @@ resource "oci_core_instance" "cowrie" {
   timeouts {
     create = "60m"
   }
+}
+
+resource "oci_objectstorage_bucket" "cowrie" {
+  #Required
+  compartment_id = var.tenancy_ocid
+  name = var.project_name
+  namespace = var.object_storage_namespace
+
+  #Optional
+  access_type = "NoPublicAccess"
+  object_events_enabled = false
+  storage_tier = "Standard"
+  versioning = "Disabled"
+}
+
+resource "oci_identity_dynamic_group" "cowrie" {
+  compartment_id = var.tenancy_ocid
+  description = "all compute instances in tenancy"
+  matching_rule = "instance.compartment.id = '${var.tenancy_ocid}'"
+  name = var.project_name
+}
+
+# policy allow dg to write objects to bucket
+resource "oci_identity_policy" "cowrie" {
+  #Required
+  compartment_id = var.tenancy_ocid
+  description = var.project_name
+  name = var.project_name
+  statements = [
+    "Allow dynamic-group ${oci_identity_dynamic_group.cowrie.name} to read buckets in tenancy",
+    "Allow dynamic-group ${oci_identity_dynamic_group.cowrie.name} to manage objects in tenancy where any {request.permission='OBJECT_CREATE', request.permission='OBJECT_INSPECT'}"
+  ]
 }
