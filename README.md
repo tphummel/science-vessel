@@ -1,6 +1,8 @@
-# OCI + Cowrie
+# Science Vessel
 
-Deploy [Cowrie](https://github.com/cowrie/cowrie) on [OCI](https://www.oracle.com/cloud/)
+Reference to Starcraft Terran discovery & research unit. Provision a compute instance, put it on the internet, conduct security research.
+
+- Deploy [Cowrie](https://github.com/cowrie/cowrie) on [OCI](https://www.oracle.com/cloud/)
 
 ## Setup
 
