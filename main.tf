@@ -1,5 +1,5 @@
 variable "project_name" {
-  default = "cowrie"
+  default = "science-vessel-2024"
 }
 
 variable "tenancy_ocid" {}
@@ -22,7 +22,7 @@ variable "availability_domain" {}
 
 variable "instance_shape" {
   # free tier eligible
-  default = "VM.Standard.E2.1.Micro"
+  default = "VM.Standard.A1.Flex"
 }
 
 variable "image_ocid" {
@@ -30,7 +30,10 @@ variable "image_ocid" {
   # default = "ocid1.image.oc1.iad.aaaaaaaawwax2iqkcrg65cxr3w656erbgsb2v7pcjbsm45aocl5qic24h2va"
 
   # centos 8 ashburn
-  default = "ocid1.image.oc1.iad.aaaaaaaagubx53kzend5acdvvayliuna2fs623ytlwalehfte7z2zdq7f6ya"
+  # default = "ocid1.image.oc1.iad.aaaaaaaagubx53kzend5acdvvayliuna2fs623ytlwalehfte7z2zdq7f6ya"
+
+  # canonical ubunutu 22.04 aarch64 ashburn
+  default = "ocid1.image.oc1.iad.aaaaaaaa2el7vv6ym4snc2gm5seaikafu3c4uwh2kuhhlsv2wpkdonjdom5a"
 }
 
 # same cidr used for the vcn and subnet
@@ -42,7 +45,7 @@ terraform {
   required_providers {
     oci = {
       source = "hashicorp/oci"
-      version = "4.59.0"
+      version = "6.8.0"
     }
   }
 }
@@ -72,32 +75,32 @@ data "oci_identity_regions" "home_region" {
   }
 }
 
-resource "oci_core_vcn" "cowrie" {
+resource "oci_core_vcn" "science_vessel" {
   cidr_block     = var.vcn_subnet_cidr
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
-  dns_label      = "cowrie"
+  dns_label      = "scives"
 }
 
-resource "oci_core_internet_gateway" "cowrie" {
+resource "oci_core_internet_gateway" "science_vessel" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
-  vcn_id = oci_core_vcn.cowrie.id
+  vcn_id = oci_core_vcn.science_vessel.id
 }
 
-resource "oci_core_route_table" "cowrie" {
+resource "oci_core_route_table" "science_vessel" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
 
   route_rules {
     destination       = "0.0.0.0/0"
-    network_entity_id = oci_core_internet_gateway.cowrie.id
+    network_entity_id = oci_core_internet_gateway.science_vessel.id
   }
 
-  vcn_id = oci_core_vcn.cowrie.id
+  vcn_id = oci_core_vcn.science_vessel.id
 }
 
-resource "oci_core_security_list" "cowrie" {
+resource "oci_core_security_list" "science_vessel" {
   compartment_id = var.tenancy_ocid
   display_name   = var.project_name
 
@@ -106,7 +109,7 @@ resource "oci_core_security_list" "cowrie" {
     destination = "0.0.0.0/0"
   }
 
-  # https://github.com/trailofbits/cowrie/blob/master/docs/firewalls.md
+  # https://github.com/trailofbits/science_vessel/blob/master/docs/firewalls.md
   ingress_security_rules {
     # Options are supported only for ICMP ("1"), TCP ("6"), UDP ("17"), and ICMPv6 ("58").
     protocol = 6
@@ -129,29 +132,29 @@ resource "oci_core_security_list" "cowrie" {
   #   }
   # }
 
-  vcn_id = oci_core_vcn.cowrie.id
+  vcn_id = oci_core_vcn.science_vessel.id
 }
 
-resource "oci_core_subnet" "cowrie" {
+resource "oci_core_subnet" "science_vessel" {
   cidr_block                 = var.vcn_subnet_cidr
   compartment_id             = var.tenancy_ocid
   display_name               = var.project_name
-  dns_label                  = "cowriesub"
+  dns_label                  = "scivessub"
   prohibit_public_ip_on_vnic = false
-  route_table_id             = oci_core_route_table.cowrie.id
-  security_list_ids          = [oci_core_security_list.cowrie.id]
-  vcn_id                     = oci_core_vcn.cowrie.id
+  route_table_id             = oci_core_route_table.science_vessel.id
+  security_list_ids          = [oci_core_security_list.science_vessel.id]
+  vcn_id                     = oci_core_vcn.science_vessel.id
 }
 
-resource "oci_core_instance" "cowrie" {
+resource "oci_core_instance" "science_vessel" {
   availability_domain = var.availability_domain
   compartment_id      = var.tenancy_ocid
 
   create_vnic_details {
     assign_public_ip = true
     display_name     = var.project_name
-    hostname_label   = "cowrie"
-    subnet_id        = oci_core_subnet.cowrie.id
+    hostname_label   = "sciencevessel"
+    subnet_id        = oci_core_subnet.science_vessel.id
   }
 
   display_name = var.project_name
@@ -171,6 +174,10 @@ resource "oci_core_instance" "cowrie" {
   }
 
   shape = var.instance_shape
+  shape_config {
+    ocpus = 2
+    memory_in_gbs = 12
+  }
 
   source_details {
     boot_volume_size_in_gbs = 50
@@ -183,7 +190,7 @@ resource "oci_core_instance" "cowrie" {
   }
 }
 
-resource "oci_objectstorage_bucket" "cowrie" {
+resource "oci_objectstorage_bucket" "science_vessel" {
   #Required
   compartment_id = var.tenancy_ocid
   name = var.project_name
@@ -196,7 +203,7 @@ resource "oci_objectstorage_bucket" "cowrie" {
   versioning = "Disabled"
 }
 
-resource "oci_identity_dynamic_group" "cowrie" {
+resource "oci_identity_dynamic_group" "science_vessel" {
   compartment_id = var.tenancy_ocid
   description = "all compute instances in tenancy"
   matching_rule = "instance.compartment.id = '${var.tenancy_ocid}'"
@@ -204,13 +211,13 @@ resource "oci_identity_dynamic_group" "cowrie" {
 }
 
 # policy allow dg to write objects to bucket
-resource "oci_identity_policy" "cowrie" {
+resource "oci_identity_policy" "science_vessel" {
   #Required
   compartment_id = var.tenancy_ocid
   description = var.project_name
   name = var.project_name
   statements = [
-    "Allow dynamic-group ${oci_identity_dynamic_group.cowrie.name} to read buckets in tenancy",
-    "Allow dynamic-group ${oci_identity_dynamic_group.cowrie.name} to manage objects in tenancy where any {request.permission='OBJECT_CREATE', request.permission='OBJECT_INSPECT'}"
+    "Allow dynamic-group ${oci_identity_dynamic_group.science_vessel.name} to read buckets in tenancy",
+    "Allow dynamic-group ${oci_identity_dynamic_group.science_vessel.name} to manage objects in tenancy where any {request.permission='OBJECT_CREATE', request.permission='OBJECT_INSPECT'}"
   ]
 }
