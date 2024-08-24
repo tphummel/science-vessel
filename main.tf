@@ -14,6 +14,10 @@ variable "private_key_path" {}
 
 variable "ssh_public_key_path" {}
 
+locals {
+  ssh_private_key_path = replace(var.ssh_public_key_path, ".pub", "")
+}
+
 variable "region" {
   default = "us-ashburn-1"
 }
@@ -121,16 +125,16 @@ resource "oci_core_security_list" "science_vessel" {
     }
   }
 
-  # ingress_security_rules {
-  #   # Options are supported only for ICMP ("1"), TCP ("6"), UDP ("17"), and ICMPv6 ("58").
-  #   protocol = 6
-  #   source   = "0.0.0.0/0"
-  #
-  #   tcp_options {
-  #     max = 2222
-  #     min = 2222
-  #   }
-  # }
+  ingress_security_rules {
+    # Options are supported only for ICMP ("1"), TCP ("6"), UDP ("17"), and ICMPv6 ("58").
+    protocol = 6
+    source   = "0.0.0.0/0"
+  
+    tcp_options {
+      max = 53291
+      min = 53291
+    }
+  }
 
   vcn_id = oci_core_vcn.science_vessel.id
 }
@@ -184,6 +188,37 @@ resource "oci_core_instance" "science_vessel" {
     source_type             = "image"
     source_id               = var.image_ocid
   }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update -y",
+      "sudo systemctl stop iptables",
+      "sudo systemctl disable iptables",
+      "sudo apt remove iptables-persistent -y",
+      "sudo iptables -F",
+      "sudo iptables -X",
+      "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak",
+      "sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config",
+      "sudo echo 'Protocol 2' >> /etc/ssh/sshd_config",
+      "sudo sed -i 's/X11Forwarding yes/X11Forwarding no/' /etc/ssh/sshd_config",
+      "sudo echo 'MaxAuthTries 3' >> /etc/ssh/sshd_config",
+      "sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config",
+      "sudo sed -i 's/#Port 22/Port 53291/' /etc/ssh/sshd_config",
+      "sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
+      "sudo echo 'AllowTcpForwarding yes' >> /etc/ssh/sshd_config",
+      "sudo echo 'ClientAliveInterval 300' >> /etc/ssh/sshd_config",
+      "sudo echo 'ClientAliveCountMax 2' >> /etc/ssh/sshd_config",
+      "sudo systemctl restart ssh"
+    ]
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file(local.ssh_private_key_path)
+    host        = self.public_ip
+  }
+
 
   timeouts {
     create = "60m"
