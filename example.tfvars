@@ -11,3 +11,5 @@ private_key_path = "~/.oci/oci_api_key.pem"
 ssh_public_key_path  = "~/.ssh/id_rsa.pub"
 
 object_storage_namespace = "asdasdasdasd"
+
+ssh_port = 22222

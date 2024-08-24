@@ -14,6 +14,8 @@ variable "private_key_path" {}
 
 variable "ssh_public_key_path" {}
 
+variable "ssh_port" {}
+
 locals {
   ssh_private_key_path = replace(var.ssh_public_key_path, ".pub", "")
 }
@@ -131,8 +133,8 @@ resource "oci_core_security_list" "science_vessel" {
     source   = "0.0.0.0/0"
   
     tcp_options {
-      max = 53291
-      min = 53291
+      max = var.ssh_port
+      min = var.ssh_port
     }
   }
 
