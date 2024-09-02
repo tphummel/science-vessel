@@ -201,15 +201,15 @@ resource "oci_core_instance" "science_vessel" {
       "sudo iptables -X",
       "sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak",
       "sudo sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' /etc/ssh/sshd_config",
-      "sudo echo 'Protocol 2' >> /etc/ssh/sshd_config",
       "sudo sed -i 's/X11Forwarding yes/X11Forwarding no/' /etc/ssh/sshd_config",
-      "sudo echo 'MaxAuthTries 3' >> /etc/ssh/sshd_config",
       "sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config",
-      "sudo sed -i 's/#Port 22/Port 53291/' /etc/ssh/sshd_config",
-      "sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
-      "sudo echo 'AllowTcpForwarding yes' >> /etc/ssh/sshd_config",
-      "sudo echo 'ClientAliveInterval 300' >> /etc/ssh/sshd_config",
-      "sudo echo 'ClientAliveCountMax 2' >> /etc/ssh/sshd_config",
+      "sudo sed -i 's/#Port 22/Port ${var.ssh_port}/' /etc/ssh/sshd_config",
+      "sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",      
+      "sudo bash -c 'echo \"Protocol 2\" >> /etc/ssh/sshd_config'",
+      "sudo bash -c 'echo \"MaxAuthTries 3\" >> /etc/ssh/sshd_config'",
+      "sudo bash -c 'echo \"AllowTcpForwarding yes\" >> /etc/ssh/sshd_config'",
+      "sudo bash -c 'echo \"ClientAliveInterval 300\" >> /etc/ssh/sshd_config'",
+      "sudo bash -c 'echo \"ClientAliveCountMax 2\" >> /etc/ssh/sshd_config'",
       "sudo systemctl restart ssh"
     ]
   }
@@ -257,4 +257,12 @@ resource "oci_identity_policy" "science_vessel" {
     "Allow dynamic-group ${oci_identity_dynamic_group.science_vessel.name} to read buckets in tenancy",
     "Allow dynamic-group ${oci_identity_dynamic_group.science_vessel.name} to manage objects in tenancy where any {request.permission='OBJECT_CREATE', request.permission='OBJECT_INSPECT'}"
   ]
+}
+
+output "science_vessel_public_ip" {
+  value = oci_core_instance.science_vessel.public_ip
+}
+
+output "science_vessel_ssh_port" {
+  value = var.ssh_port
 }
